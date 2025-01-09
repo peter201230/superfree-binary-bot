@@ -20,6 +20,59 @@
     <variable type="" id="O3.l@0]ASw2sPd!#jO!!" islocal="false" iscloud="false">Target Profit</variable>
     <variable type="" id="n+936S466lK7jFW~YAl(" islocal="false" iscloud="false">text3</variable>
   </variables>
+# Define RSI Calculation
+def calculate_rsi(data, period=14):
+    delta = data['close'].diff(1)
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.rolling(window=period, min_periods=1).mean()
+    avg_loss = loss.rolling(window=period, min_periods=1).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+# Entry and Exit Logic
+def check_signals(data, rsi_period=14, overbought=70, oversold=30):
+    data['RSI'] = calculate_rsi(data, rsi_period)
+
+    if data['RSI'].iloc[-1] > overbought:
+        return "SELL"
+    elif data['RSI'].iloc[-1] < oversold:
+        return "BUY"
+    else:
+        return "HOLD"
+
+# Simulate Trading Logic (replace this with API integration for live trading)
+def simulate_trading():
+    # Replace this with actual market data retrieval
+    historical_data = pd.DataFrame({
+        'close': [100, 101, 102, 103, 101, 99, 98, 97, 96, 98, 100]
+    })
+
+    while True:
+        # Simulate new data (replace this with live data retrieval)
+        new_price = historical_data['close'].iloc[-1] + np.random.choice([-1, 1])
+        new_data = pd.DataFrame({'close': [new_price]})
+        historical_data = pd.concat([historical_data, new_data], ignore_index=True)
+
+        # Check signals
+        signal = check_signals(historical_data)
+        print(f"Current Signal: {signal} | Last Price: {new_price}")
+
+        if signal == "BUY":
+            print("Executing BUY order...")
+        elif signal == "SELL":
+            print("Executing SELL order...")
+
+        # Wait before next check (adjust interval as needed)
+        time.sleep(5)
+
+# Run simulation or live trading
+if __name__ == "__main__":
+    simulate_trading()
+
   <block type="trade_definition" id=":,u}#h3=I+@IU7aG29Ln" x="0" y="0">
     <statement name="TRADE_OPTIONS">
       <block type="trade_definition_market" id="rU.xV`6}P7LG@+hBa!8*" deletable="false" movable="false">
