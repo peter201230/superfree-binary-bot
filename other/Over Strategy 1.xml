@@ -764,4 +764,44 @@
   <block type="purchase" id="9]hr5Ss$]+]~b6}3{|e0" disabled="true" x="0" y="1872">
     <field name="PURCHASE_LIST">DIGITOVER</field>
   </block>
-</xml>
+# Define constants
+RSI_PERIOD = 14  # Period for RSI calculation
+RSI_OVERBOUGHT = 70  # Overbought threshold
+RSI_OVERSOLD = 30  # Oversold threshold
+
+# Connect to Binary Bot API
+bot = BinaryBot(api_key="YOUR_API_KEY")
+
+# Define a function to fetch historical data
+def fetch_data():
+    # Replace with actual API to fetch data
+    data = bot.get_candles("symbol", interval=1, count=200)
+    df = pd.DataFrame(data)
+    df['time'] = pd.to_datetime(df['time'], unit='s')
+    return df
+
+# Define the trading logic
+def rsi_strategy():
+    df = fetch_data()
+
+    # Calculate RSI
+    df['rsi'] = talib.RSI(df['close'], timeperiod=RSI_PERIOD)
+
+    # Trading conditions
+    last_rsi = df['rsi'].iloc[-1]
+    prev_rsi = df['rsi'].iloc[-2]
+
+    if prev_rsi < RSI_OVERSOLD and last_rsi > RSI_OVERSOLD:
+        print("Signal: Buy")
+        bot.place_trade("symbol", "call", amount=10, duration=1)
+
+    elif prev_rsi > RSI_OVERBOUGHT and last_rsi < RSI_OVERBOUGHT:
+        print("Signal: Sell")
+        bot.place_trade("symbol", "put", amount=10, duration=1)
+
+# Run the bot
+try:
+    while True:
+        rsi_strategy()
+except KeyboardInterrupt:
+    print("Bot stopped.")
