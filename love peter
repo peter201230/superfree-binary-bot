@@ -1,0 +1,88 @@
+# Constants
+API_KEY = 'your_api_key'
+API_SECRET = 'your_api_secret'
+SYMBOL = 'BTC/USDT'  # Trading pair
+TIMEFRAME = '1m'  # Timeframe (1m, 5m, 1h, etc.)
+BALANCE_PERCENTAGE = 0.1  # Percentage of balance to trade
+STOP_LOSS_PERCENTAGE = 0.01  # Stop-loss percentage
+TAKE_PROFIT_PERCENTAGE = 0.02  # Take-profit percentage
+
+# Initialize exchange
+exchange = ccxt.binance({
+    'apiKey': API_KEY,
+    'secret': API_SECRET,
+    'enableRateLimit': True,
+})
+
+# Function to fetch market data
+def fetch_data(symbol, timeframe, limit=100):
+    candles = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+    df = pd.DataFrame(candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    return df
+
+# Function to calculate indicators
+def calculate_indicators(data):
+    data['RSI'] = talib.RSI(data['close'], timeperiod=14)
+    data['EMA'] = talib.EMA(data['close'], timeperiod=50)
+    return data
+
+# Function to check entry and exit signals
+def check_signals(data):
+    last_row = data.iloc[-1]
+    previous_row = data.iloc[-2]
+    
+    entry_signal = (last_row['RSI'] < 30 and last_row['close'] > last_row['EMA'])
+    exit_signal = (last_row['RSI'] > 70 or last_row['close'] < last_row['EMA'])
+    
+    return entry_signal, exit_signal
+
+# Function to get account balance
+def get_balance(asset):
+    balance = exchange.fetch_balance()
+    return balance['free'][asset]
+
+# Function to place an order
+def place_order(symbol, side, amount, price=None):
+    if side == 'buy':
+        order = exchange.create_market_buy_order(symbol, amount)
+    else:
+        order = exchange.create_market_sell_order(symbol, amount)
+    return order
+
+# Main bot loop
+def run_bot():
+    position = 0  # Track whether a position is open
+    while True:
+        try:
+            # Fetch data and calculate indicators
+            data = fetch_data(SYMBOL, TIMEFRAME)
+            data = calculate_indicators(data)
+
+            # Check for signals
+            entry_signal, exit_signal = check_signals(data)
+
+            if entry_signal and position == 0:
+                # Entry logic
+                balance = get_balance('USDT')
+                trade_amount = (balance * BALANCE_PERCENTAGE) / data['close'].iloc[-1]
+                trade_amount = round(trade_amount, 6)  # Adjust precision
+                place_order(SYMBOL, 'buy', trade_amount)
+                position = trade_amount
+                print(f"Entered position: {trade_amount} {SYMBOL.split('/')[0]}")
+
+            elif exit_signal and position > 0:
+                # Exit logic
+                place_order(SYMBOL, 'sell', position)
+                print(f"Exited position: {position} {SYMBOL.split('/')[0]}")
+                position = 0
+
+            # Sleep to avoid rate limit
+            time.sleep(60)
+
+        except Exception as e:
+            print(f"Error: {e}")
+            time.sleep(60)
+
+# Run the bot
+run_bot()
